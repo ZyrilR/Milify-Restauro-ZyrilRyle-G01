@@ -136,3 +136,72 @@ class RegistrationTests(TestCase):
         for field in ("full_name", "username", "email", "password1", "password2"):
             self.assertFormError(form, field, "This field is required.")
         self.assertEqual(User.objects.count(), 0)
+
+
+class AuthenticationTests(TestCase):
+    def setUp(self):
+        self.login_url = reverse("login")
+        self.password = "MilifySafePass!42"
+        self.user = User.objects.create_user(
+            username="existing",
+            password=self.password,
+            email="existing@example.com",
+            full_name="Existing User",
+        )
+
+    def test_login_page_has_username_and_password_fields(self):
+        response = self.client.get(self.login_url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "registration/login.html")
+        self.assertContains(response, 'name="username"')
+        self.assertContains(response, 'name="password"')
+
+    def test_valid_login_creates_authenticated_session_and_redirects(self):
+        response = self.client.post(
+            self.login_url,
+            {"username": self.user.username, "password": self.password},
+        )
+
+        self.assertRedirects(response, self.login_url)
+        self.assertEqual(
+            self.client.session["_auth_user_id"],
+            str(self.user.pk),
+        )
+
+    def test_invalid_login_displays_error(self):
+        response = self.client.post(
+            self.login_url,
+            {"username": self.user.username, "password": "incorrect"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Please enter a correct username and password.")
+        self.assertNotIn("_auth_user_id", self.client.session)
+
+    def test_login_preserves_requested_destination(self):
+        destination = reverse("admin:index")
+        response = self.client.post(
+            f"{self.login_url}?next={destination}",
+            {"username": self.user.username, "password": self.password},
+        )
+
+        self.assertRedirects(response, destination, fetch_redirect_response=False)
+        self.assertEqual(self.client.session["_auth_user_id"], str(self.user.pk))
+
+    def test_logout_terminates_session_and_displays_confirmation(self):
+        self.client.force_login(self.user)
+        response = self.client.post(reverse("logout"), follow=True)
+
+        self.assertRedirects(response, self.login_url)
+        self.assertNotIn("_auth_user_id", self.client.session)
+        self.assertContains(response, "You have been logged out successfully.")
+
+    def test_admin_requires_authentication(self):
+        response = self.client.get(reverse("admin:index"))
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(
+            response.url,
+            f"{reverse('admin:login')}?next={reverse('admin:index')}",
+        )
