@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}Milify{% endblock %}</title>
+    <style>
+        :root {
+            color-scheme: light;
+            font-family: Arial, Helvetica, sans-serif;
+            color: #202124;
+            background: #f5f6f7;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            min-width: 320px;
+            min-height: 100svh;
+            margin: 0;
+            font-size: 14px;
+        }
+
+        main {
+            display: grid;
+            min-height: 100svh;
+            place-items: center;
+            padding: 32px 16px;
+        }
+
+        .registration {
+            width: min(100%, 480px);
+            padding: 32px;
+            border-radius: 8px;
+            background: #ffffff;
+        }
+
+        .brand {
+            margin: 0 0 24px;
+            font-size: 18px;
+            font-weight: 700;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 24px;
+            line-height: 1.25;
+        }
+
+        .intro {
+            margin: 8px 0 24px;
+            color: #5f6368;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .field {
+            margin-bottom: 16px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        input {
+            width: 100%;
+            min-height: 42px;
+            padding: 10px 12px;
+            border: 1px solid #c9cdd2;
+            border-radius: 6px;
+            background: #ffffff;
+            color: #202124;
+            font: inherit;
+        }
+
+        input:focus {
+            border-color: #1d1f20;
+            outline: 2px solid #1d1f20;
+            outline-offset: 2px;
+        }
+
+        .help,
+        .help ul {
+            margin: 8px 0 0;
+            padding-left: 18px;
+            color: #5f6368;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .error,
+        .errorlist {
+            margin: 8px 0 0;
+            padding: 0;
+            color: #a12622;
+            font-size: 14px;
+            line-height: 1.4;
+            list-style: none;
+        }
+
+        .message {
+            margin: 0 0 20px;
+            padding: 12px;
+            border-radius: 6px;
+            background: #e8f3ec;
+            color: #1b5e35;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .submit {
+            width: 100%;
+            min-height: 44px;
+            margin-top: 4px;
+            border: 0;
+            border-radius: 6px;
+            background: #1d1f20;
+            color: #ffffff;
+            font: inherit;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .submit:hover {
+            background: #343638;
+        }
+
+        .submit:focus-visible {
+            outline: 2px solid #1d1f20;
+            outline-offset: 3px;
+        }
+
+        @media (max-width: 480px) {
+            .registration {
+                padding: 24px 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    {% block content %}{% endblock %}
+</body>
+</html>
