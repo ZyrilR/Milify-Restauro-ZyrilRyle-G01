@@ -15,3 +15,5 @@ venv/
 db.sqlite3
 staticfiles/
 media/
+
+sample.md
