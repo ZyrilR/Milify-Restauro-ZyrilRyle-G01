@@ -23,6 +23,25 @@
             font-size: 14px;
         }
 
+        .navigation {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .navigation button {
+            padding: 0;
+            border: 0;
+            background: none;
+            color: #202124;
+            font: inherit;
+            text-decoration: underline;
+            cursor: pointer;
+        }
+
         main {
             display: grid;
             min-height: 100svh;
@@ -143,6 +162,18 @@
     </style>
 </head>
 <body>
+    <nav class="navigation" aria-label="Account">
+        {% if user.is_authenticated %}
+            <span>Hi, {{ user.username }}</span>
+            <form method="post" action="{% url 'logout' %}">
+                {% csrf_token %}
+                <button type="submit">Log out</button>
+            </form>
+        {% else %}
+            <a href="{% url 'login' %}">Log in</a>
+            <a href="{% url 'register' %}">Create account</a>
+        {% endif %}
+    </nav>
     {% block content %}{% endblock %}
 </body>
 </html>

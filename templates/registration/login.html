@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block title %}Log in to Milify{% endblock %}
+
+{% block content %}
+    <main>
+        <section class="registration" aria-labelledby="login-title">
+            <p class="brand">Milify</p>
+            <h1 id="login-title">Log in</h1>
+            <p class="intro">Log in to organize and manage your technology projects.</p>
+
+            {% for message in messages %}
+                <p class="message" role="status">{{ message }}</p>
+            {% endfor %}
+
+            <form method="post">
+                {% csrf_token %}
+                {% if next %}
+                    <input type="hidden" name="next" value="{{ next }}">
+                {% endif %}
+                {% if form.non_field_errors %}
+                    <div class="error" role="alert">{{ form.non_field_errors }}</div>
+                {% endif %}
+
+                {% for field in form %}
+                    <div class="field">
+                        {{ field.label_tag }}
+                        {{ field }}
+                        {% for error in field.errors %}
+                            <p class="error" role="alert">{{ error }}</p>
+                        {% endfor %}
+                    </div>
+                {% endfor %}
+
+                <button class="submit" type="submit">Log in</button>
+            </form>
+            <p class="intro">Need an account? <a href="{% url 'register' %}">Create one</a></p>
+        </section>
+    </main>
+{% endblock %}
