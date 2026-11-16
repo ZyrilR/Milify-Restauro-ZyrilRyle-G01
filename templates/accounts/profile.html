@@ -3,47 +3,38 @@
 {% block title %}Your profile | Milify{% endblock %}
 
 {% block content %}
-    <main>
-        <section class="registration" aria-labelledby="profile-title">
-            <p class="brand">Milify</p>
-            <h1 id="profile-title">Your profile</h1>
-            <p class="intro">View and update your account information.</p>
-
-            {% for message in messages %}
-                <p class="message" role="status">{{ message }}</p>
-            {% endfor %}
-
-            <dl>
-                <dt>Full name</dt>
-                <dd>{{ form.instance.full_name }}</dd>
-                <dt>Username</dt>
-                <dd>{{ form.instance.username }}</dd>
-                <dt>Email</dt>
-                <dd>{{ form.instance.email }}</dd>
-            </dl>
-
-            <h2>Update your details</h2>
-            <form method="post">
-                {% csrf_token %}
-                {% if form.non_field_errors %}
-                    <div class="error" role="alert">{{ form.non_field_errors }}</div>
-                {% endif %}
-
-                {% for field in form %}
-                    <div class="field">
-                        {{ field.label_tag }}
-                        {{ field }}
-                        {% if field.help_text %}
-                            <div class="help">{{ field.help_text }}</div>
-                        {% endif %}
-                        {% for error in field.errors %}
-                            <p class="error" role="alert">{{ error }}</p>
-                        {% endfor %}
-                    </div>
-                {% endfor %}
-
-                <button class="submit" type="submit">Save changes</button>
-            </form>
-        </section>
+    <main class="workspace">
+        <div class="page-heading">
+            <div>
+                <h1 id="profile-title">Your profile</h1>
+                <p class="intro">View and update your account information.</p>
+            </div>
+        </div>
+        {% for message in messages %}<p class="message" role="status">{{ message }}</p>{% endfor %}
+        <div class="profile-grid">
+            <section class="panel" aria-labelledby="account-details-title">
+                <h2 class="panel-heading" id="account-details-title">Account details</h2>
+                <dl class="profile-details">
+                    <div><dt>Full name</dt><dd>{{ form.instance.full_name }}</dd></div>
+                    <div><dt>Username</dt><dd>{{ form.instance.username }}</dd></div>
+                    <div><dt>Email</dt><dd>{{ form.instance.email }}</dd></div>
+                </dl>
+            </section>
+            <section class="panel form-panel" aria-labelledby="update-details-title">
+                <h2 id="update-details-title">Update your details</h2>
+                <form method="post">
+                    {% csrf_token %}
+                    {% if form.non_field_errors %}<div class="error" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+                    {% for field in form %}
+                        <div class="field">
+                            {{ field.label_tag }}{{ field }}
+                            {% if field.help_text %}<div class="help">{{ field.help_text }}</div>{% endif %}
+                            {% for error in field.errors %}<p class="error" role="alert">{{ error }}</p>{% endfor %}
+                        </div>
+                    {% endfor %}
+                    <button class="submit" type="submit">Save changes</button>
+                </form>
+            </section>
+        </div>
     </main>
 {% endblock %}
