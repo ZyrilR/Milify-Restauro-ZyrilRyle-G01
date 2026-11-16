@@ -221,3 +221,163 @@ class AuthenticationTests(TestCase):
             response.url,
             f"{reverse('admin:login')}?next={reverse('admin:index')}",
         )
+
+
+class ProfileViewTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="profile-user",
+            email="profile@example.com",
+            full_name="Profile User",
+        )
+        self.other_user = User.objects.create_user(
+            username="other-profile-user",
+            email="other-profile@example.com",
+            full_name="Other Profile User",
+        )
+        self.url = reverse("profile")
+
+    def test_profile_requires_authentication(self):
+        response = self.client.get(self.url)
+
+        self.assertRedirects(
+            response,
+            f"{reverse('login')}?next={self.url}",
+            fetch_redirect_response=False,
+        )
+
+    def test_user_can_view_their_own_profile(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "accounts/profile.html")
+        self.assertContains(response, self.user.full_name)
+        self.assertContains(response, self.user.username)
+        self.assertContains(response, self.user.email)
+        self.assertNotContains(response, self.other_user.email)
+        self.assertEqual(response.context["form"].instance, self.user)
+        self.assertEqual(list(response.context["form"].fields), ["full_name", "email"])
+        self.assertContains(response, f'href="{self.url}">Profile</a>')
+
+    def test_user_can_update_their_own_profile(self):
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            self.url,
+            {
+                "full_name": "Updated Profile User",
+                "email": "updated-profile@example.com",
+            },
+        )
+
+        self.assertRedirects(response, self.url, fetch_redirect_response=False)
+        self.user.refresh_from_db()
+        self.other_user.refresh_from_db()
+        self.assertEqual(self.user.full_name, "Updated Profile User")
+        self.assertEqual(self.user.email, "updated-profile@example.com")
+        self.assertEqual(self.user.username, "profile-user")
+        self.assertEqual(self.other_user.full_name, "Other Profile User")
+        self.assertEqual(self.other_user.email, "other-profile@example.com")
+
+    def test_profile_accepts_the_users_existing_email(self):
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            self.url,
+            {
+                "full_name": "Updated Profile User",
+                "email": self.user.email,
+            },
+        )
+
+        self.assertRedirects(response, self.url, fetch_redirect_response=False)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.full_name, "Updated Profile User")
+        self.assertEqual(self.user.email, "profile@example.com")
+
+    def test_profile_rejects_missing_required_fields(self):
+        self.client.force_login(self.user)
+
+        response = self.client.post(self.url, {"full_name": "", "email": ""})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFormError(response.context["form"], "full_name", "This field is required.")
+        self.assertFormError(response.context["form"], "email", "This field is required.")
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.full_name, "Profile User")
+        self.assertEqual(self.user.email, "profile@example.com")
+
+    def test_profile_rejects_invalid_email(self):
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            self.url,
+            {"full_name": "Updated Profile User", "email": "not-an-email"},
+        )
+
+        self.assertFormError(
+            response.context["form"],
+            "email",
+            "Enter a valid email address.",
+        )
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.full_name, "Profile User")
+        self.assertEqual(self.user.email, "profile@example.com")
+
+    def test_profile_rejects_another_users_email(self):
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            self.url,
+            {
+                "full_name": "Updated Profile User",
+                "email": self.other_user.email,
+            },
+        )
+
+        self.assertFormError(
+            response.context["form"],
+            "email",
+            "An account with this email address already exists.",
+        )
+        self.user.refresh_from_db()
+        self.other_user.refresh_from_db()
+        self.assertEqual(self.user.full_name, "Profile User")
+        self.assertEqual(self.user.email, "profile@example.com")
+        self.assertEqual(self.other_user.email, "other-profile@example.com")
+
+    def test_url_and_submitted_identifiers_cannot_target_another_user(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(f"{self.url}?user_id={self.other_user.pk}")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["form"].instance, self.user)
+        self.assertEqual(
+            self.client.get(f"{self.url}{self.other_user.pk}/").status_code,
+            404,
+        )
+
+        response = self.client.post(
+            f"{self.url}?user_id={self.other_user.pk}",
+            {
+                "user_id": self.other_user.pk,
+                "username": self.other_user.username,
+                "is_staff": "on",
+                "full_name": "Still the authenticated user",
+                "email": "still-self@example.com",
+            },
+        )
+
+        self.assertRedirects(response, self.url, fetch_redirect_response=False)
+        self.user.refresh_from_db()
+        self.other_user.refresh_from_db()
+        self.assertEqual(self.user.full_name, "Still the authenticated user")
+        self.assertEqual(self.user.email, "still-self@example.com")
+        self.assertEqual(self.user.username, "profile-user")
+        self.assertFalse(self.user.is_staff)
+        self.assertEqual(self.other_user.full_name, "Other Profile User")
+        self.assertEqual(self.other_user.email, "other-profile@example.com")
+        self.assertEqual(self.other_user.username, "other-profile-user")
