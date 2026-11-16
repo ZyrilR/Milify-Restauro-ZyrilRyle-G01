@@ -1,20 +1,37 @@
 {% extends "base.html" %}
 
-{% block title %}Dashboard | Milify{% endblock %}
+{% block title %}Workspace | Milify{% endblock %}
 
 {% block content %}
-    <main>
-        <section class="registration" aria-labelledby="dashboard-title">
-            <p class="brand">Milify</p>
-            <h1 id="dashboard-title">Welcome, {{ user.full_name|default:user.username }}</h1>
-
-            {% if owns_projects and is_member %}
-                <p class="intro">Choose a dashboard to view your projects.</p>
-                <p><a href="{% url 'owner_dashboard' %}">Project Owner Dashboard</a></p>
-                <p><a href="{% url 'member_dashboard' %}">Project Member Dashboard</a></p>
-            {% else %}
-                <p class="intro">You have not created or joined any projects yet.</p>
-            {% endif %}
-        </section>
+    <main class="workspace">
+        <div class="page-heading">
+            <div>
+                <h1 id="dashboard-title">Welcome, {{ user.full_name|default:user.username }}</h1>
+                {% if owns_projects and is_member %}
+                    <p class="intro">Choose a workspace to see the projects you own or have joined.</p>
+                {% else %}
+                    <p class="intro">Your projects and memberships will appear here.</p>
+                {% endif %}
+            </div>
+        </div>
+        {% if owns_projects and is_member %}
+            <div class="dashboard-choices" aria-labelledby="dashboard-title">
+                <a class="choice" href="{% url 'owner_dashboard' %}">
+                    <h2>Projects you own</h2>
+                    <p>Manage the projects you created.</p>
+                    <span class="choice-arrow">Open owner workspace →</span>
+                </a>
+                <a class="choice" href="{% url 'member_dashboard' %}">
+                    <h2>Projects you’ve joined</h2>
+                    <p>See the projects where you’re a member.</p>
+                    <span class="choice-arrow">Open member workspace →</span>
+                </a>
+            </div>
+        {% else %}
+            <section class="panel empty-state" aria-labelledby="empty-title">
+                <h2 id="empty-title">No projects yet</h2>
+                <p>You have not created or joined any projects yet.</p>
+            </section>
+        {% endif %}
     </main>
 {% endblock %}
