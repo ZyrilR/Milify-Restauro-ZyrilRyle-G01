@@ -157,13 +157,17 @@ class AuthenticationTests(TestCase):
         self.assertContains(response, 'name="username"')
         self.assertContains(response, 'name="password"')
 
-    def test_valid_login_creates_authenticated_session_and_redirects(self):
+    def test_valid_login_redirects_to_main_dashboard(self):
         response = self.client.post(
             self.login_url,
             {"username": self.user.username, "password": self.password},
         )
 
-        self.assertRedirects(response, self.login_url)
+        self.assertRedirects(
+            response,
+            reverse("dashboard"),
+            fetch_redirect_response=False,
+        )
         self.assertEqual(
             self.client.session["_auth_user_id"],
             str(self.user.pk),
@@ -188,6 +192,18 @@ class AuthenticationTests(TestCase):
 
         self.assertRedirects(response, destination, fetch_redirect_response=False)
         self.assertEqual(self.client.session["_auth_user_id"], str(self.user.pk))
+
+    def test_login_rejects_unsafe_requested_destination(self):
+        response = self.client.post(
+            f"{self.login_url}?next=https://example.com/",
+            {"username": self.user.username, "password": self.password},
+        )
+
+        self.assertRedirects(
+            response,
+            reverse("dashboard"),
+            fetch_redirect_response=False,
+        )
 
     def test_logout_terminates_session_and_displays_confirmation(self):
         self.client.force_login(self.user)

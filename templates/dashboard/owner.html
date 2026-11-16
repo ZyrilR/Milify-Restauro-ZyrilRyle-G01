@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block title %}Project Owner Dashboard | Milify{% endblock %}
+
+{% block content %}
+    <main>
+        <section class="registration" aria-labelledby="dashboard-title">
+            <p class="brand">Milify</p>
+            <h1 id="dashboard-title">Project Owner Dashboard</h1>
+            <p class="intro">You own {{ project_count }} project{{ project_count|pluralize }}.</p>
+
+            {% if projects %}
+                <ul>
+                    {% for project in projects %}
+                        <li>
+                            <h2>{{ project.name }}</h2>
+                            {% if project.description %}
+                                <p>{{ project.description }}</p>
+                            {% endif %}
+                            <p>Created {{ project.created_at|date:"M j, Y" }}</p>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+
+            {% if is_member %}
+                <p><a href="{% url 'member_dashboard' %}">Project Member Dashboard</a></p>
+            {% endif %}
+        </section>
+    </main>
+{% endblock %}

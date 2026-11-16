@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard | Milify{% endblock %}
+
+{% block content %}
+    <main>
+        <section class="registration" aria-labelledby="dashboard-title">
+            <p class="brand">Milify</p>
+            <h1 id="dashboard-title">Welcome, {{ user.full_name|default:user.username }}</h1>
+
+            {% if owns_projects and is_member %}
+                <p class="intro">Choose a dashboard to view your projects.</p>
+                <p><a href="{% url 'owner_dashboard' %}">Project Owner Dashboard</a></p>
+                <p><a href="{% url 'member_dashboard' %}">Project Member Dashboard</a></p>
+            {% else %}
+                <p class="intro">You have not created or joined any projects yet.</p>
+            {% endif %}
+        </section>
+    </main>
+{% endblock %}
