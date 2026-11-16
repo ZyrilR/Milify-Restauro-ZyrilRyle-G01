@@ -165,6 +165,7 @@
     <nav class="navigation" aria-label="Account">
         {% if user.is_authenticated %}
             <span>Hi, {{ user.username }}</span>
+            <a href="{% url 'dashboard' %}">Dashboard</a>
             <form method="post" action="{% url 'logout' %}">
                 {% csrf_token %}
                 <button type="submit">Log out</button>
