@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }} | Milify{% endblock %}
+
+{% block content %}
+    <main class="workspace">
+        <div class="page-heading">
+            <div>
+                <h1 id="placeholder-title">{{ title }}</h1>
+                <p class="intro">{{ description }}</p>
+            </div>
+        </div>
+        <section class="panel empty-state" aria-labelledby="availability-title">
+            <h2 id="availability-title">Not yet available</h2>
+            <p>This feature is planned and will be available in a future update.</p>
+            <a class="button-link" href="{% url dashboard_url %}">Back to workspace</a>
+        </section>
+    </main>
+{% endblock %}

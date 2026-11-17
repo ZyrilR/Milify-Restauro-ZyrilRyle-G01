@@ -6,26 +6,14 @@
     <main class="workspace">
         <div class="page-heading">
             <div>
-                <h1 id="dashboard-title">Projects you’ve joined</h1>
-                <p class="intro">Projects where you’re a member.</p>
+                <h1 id="dashboard-title">Member workspace</h1>
+                <p class="intro">Find a project to join and collaborate with its team.</p>
             </div>
         </div>
-        <section class="panel" aria-labelledby="projects-title">
-            <h2 class="panel-heading" id="projects-title">Member projects</h2>
-            <ul class="project-list">
-                {% for project in projects %}
-                    <li class="project-item">
-                        <div>
-                            <h2>{{ project.name }}</h2>
-                            {% if project.description %}<p class="project-description">{{ project.description }}</p>{% endif %}
-                        </div>
-                        <p class="project-date">Created {{ project.created_at|date:"M j, Y" }}</p>
-                    </li>
-                {% empty %}
-                    <li class="empty-state">You haven’t joined any projects yet.</li>
-                {% endfor %}
-            </ul>
+        <section class="panel empty-state" aria-labelledby="projects-title">
+            <h2 class="panel-heading" id="projects-title">Join a project</h2>
+            <p>Enter a project invite or browse available projects to get started.</p>
+            <a class="button-link" href="{% url 'member_join_project' %}">Join project</a>
         </section>
-        {% if owns_projects %}<a class="switch-link" href="{% url 'owner_dashboard' %}">View projects you own</a>{% endif %}
     </main>
 {% endblock %}

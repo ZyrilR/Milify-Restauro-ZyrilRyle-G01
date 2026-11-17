@@ -1,63 +1,53 @@
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect, render
 
-from .models import Project, ProjectMember
-
 
 @login_required
 def dashboard(request):
-    owns_projects = Project.objects.filter(owner=request.user).exists()
-    is_member = ProjectMember.objects.filter(user=request.user).exists()
-
-    if owns_projects and not is_member:
+    if request.user.role == request.user.Role.OWNER:
         return redirect("owner_dashboard")
-    if is_member and not owns_projects:
-        return redirect("member_dashboard")
-
-    return render(
-        request,
-        "dashboard/home.html",
-        {
-            "owns_projects": owns_projects,
-            "is_member": is_member,
-        },
-    )
+    return redirect("member_dashboard")
 
 
 @login_required
 def owner_dashboard(request):
-    projects = Project.objects.filter(owner=request.user).order_by("name")
-    if not projects.exists():
-        if ProjectMember.objects.filter(user=request.user).exists():
-            return redirect("member_dashboard")
+    if request.user.role != request.user.Role.OWNER:
         return redirect("dashboard")
+    return render(request, "dashboard/owner.html")
 
+
+@login_required
+def member_dashboard(request):
+    if request.user.role != request.user.Role.MEMBER:
+        return redirect("dashboard")
+    return render(request, "dashboard/member.html")
+
+
+@login_required
+def owner_create_project(request):
+    if request.user.role != request.user.Role.OWNER:
+        return redirect("dashboard")
     return render(
         request,
-        "dashboard/owner.html",
+        "dashboard/placeholder.html",
         {
-            "projects": projects,
-            "project_count": projects.count(),
-            "is_member": ProjectMember.objects.filter(user=request.user).exists(),
+            "title": "Create a project",
+            "description": "Project creation is not available yet.",
+            "dashboard_url": "owner_dashboard",
         },
     )
 
 
 @login_required
-def member_dashboard(request):
-    projects = Project.objects.filter(
-        memberships__user=request.user,
-    ).order_by("name")
-    if not projects.exists():
-        if Project.objects.filter(owner=request.user).exists():
-            return redirect("owner_dashboard")
+def member_join_project(request):
+    if request.user.role != request.user.Role.MEMBER:
         return redirect("dashboard")
-
     return render(
         request,
-        "dashboard/member.html",
+        "dashboard/placeholder.html",
         {
-            "projects": projects,
-            "owns_projects": Project.objects.filter(owner=request.user).exists(),
+            "title": "Join a project",
+            "description": "Joining a project is not available yet.",
+            "dashboard_url": "member_dashboard",
         },
     )
