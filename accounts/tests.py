@@ -1,4 +1,5 @@
 from django.contrib.auth import get_user_model
+from django.db import IntegrityError, transaction
 from django.test import TestCase
 from django.urls import reverse
 
@@ -18,6 +19,7 @@ class RegistrationTests(TestCase):
             "full_name": "New User",
             "username": "newuser",
             "email": "newuser@example.com",
+            "role": User.Role.MEMBER,
             "password1": self.password,
             "password2": self.password,
         }
@@ -30,6 +32,7 @@ class RegistrationTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, "registration/register.html")
         self.assertIsInstance(response.context["form"], CustomUserCreationForm)
+        self.assertContains(response, "Choose your role")
 
     def test_valid_registration_creates_user_with_hashed_password(self):
         response = self.client.post(
@@ -43,6 +46,7 @@ class RegistrationTests(TestCase):
         user = User.objects.get(username="newuser")
         self.assertEqual(user.full_name, "New User")
         self.assertEqual(user.email, "newuser@example.com")
+        self.assertEqual(user.role, User.Role.MEMBER)
         self.assertNotEqual(user.password, self.password)
         self.assertTrue(user.check_password(self.password))
 
@@ -133,9 +137,30 @@ class RegistrationTests(TestCase):
         response = self.client.post(self.url, {})
         form = response.context["form"]
 
-        for field in ("full_name", "username", "email", "password1", "password2"):
+        for field in ("full_name", "username", "email", "role", "password1", "password2"):
             self.assertFormError(form, field, "This field is required.")
         self.assertEqual(User.objects.count(), 0)
+
+    def test_registration_saves_the_selected_owner_role(self):
+        response = self.client.post(
+            self.url,
+            self.registration_data(role=User.Role.OWNER),
+        )
+
+        self.assertRedirects(response, self.url, fetch_redirect_response=False)
+        self.assertEqual(
+            User.objects.get(username="newuser").role,
+            User.Role.OWNER,
+        )
+
+    def test_registration_rejects_an_unknown_role(self):
+        response = self.client.post(
+            self.url,
+            self.registration_data(role="admin"),
+        )
+
+        self.assertIn("Select a valid choice.", response.context["form"].errors["role"][0])
+        self.assertFalse(User.objects.filter(username="newuser").exists())
 
 
 class AuthenticationTests(TestCase):
@@ -147,6 +172,22 @@ class AuthenticationTests(TestCase):
             password=self.password,
             email="existing@example.com",
             full_name="Existing User",
+        )
+
+    def test_accounts_root_redirects_to_login(self):
+        response = self.client.get("/accounts/", follow=True)
+
+        self.assertRedirects(response, self.login_url)
+
+    def test_accounts_root_without_trailing_slash_redirects_to_login(self):
+        response = self.client.get("/accounts", follow=True)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertRedirects(
+            response,
+            self.login_url,
+            status_code=301,
+            target_status_code=200,
         )
 
     def test_login_page_has_username_and_password_fields(self):
@@ -229,6 +270,7 @@ class ProfileViewTests(TestCase):
             username="profile-user",
             email="profile@example.com",
             full_name="Profile User",
+            password="MilifySafePass!42",
         )
         self.other_user = User.objects.create_user(
             username="other-profile-user",
@@ -236,6 +278,7 @@ class ProfileViewTests(TestCase):
             full_name="Other Profile User",
         )
         self.url = reverse("profile")
+        self.password_url = reverse("change_password")
 
     def test_profile_requires_authentication(self):
         response = self.client.get(self.url)
@@ -256,10 +299,33 @@ class ProfileViewTests(TestCase):
         self.assertContains(response, self.user.full_name)
         self.assertContains(response, self.user.username)
         self.assertContains(response, self.user.email)
+        self.assertContains(response, self.user.get_role_display())
         self.assertNotContains(response, self.other_user.email)
         self.assertEqual(response.context["form"].instance, self.user)
         self.assertEqual(list(response.context["form"].fields), ["full_name", "email"])
+        self.assertNotIn("role", response.context["form"].fields)
         self.assertContains(response, f'href="{self.url}">Profile</a>')
+        self.assertContains(response, f'href="{self.password_url}">Change password</a>')
+
+    def test_change_password_page_requires_authentication(self):
+        response = self.client.get(self.password_url)
+
+        self.assertRedirects(
+            response,
+            f"{reverse('login')}?next={self.password_url}",
+            fetch_redirect_response=False,
+        )
+
+    def test_user_can_open_change_password_page(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(self.password_url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "accounts/change_password.html")
+        self.assertContains(response, 'name="old_password"')
+        self.assertContains(response, 'name="new_password1"')
+        self.assertContains(response, 'name="new_password2"')
 
     def test_user_can_update_their_own_profile(self):
         self.client.force_login(self.user)
@@ -280,6 +346,88 @@ class ProfileViewTests(TestCase):
         self.assertEqual(self.user.username, "profile-user")
         self.assertEqual(self.other_user.full_name, "Other Profile User")
         self.assertEqual(self.other_user.email, "other-profile@example.com")
+
+    def test_profile_cannot_change_the_account_role(self):
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            self.url,
+            {
+                "full_name": "Updated Profile User",
+                "email": self.user.email,
+                "role": User.Role.OWNER,
+            },
+        )
+
+        self.assertRedirects(response, self.url, fetch_redirect_response=False)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.role, User.Role.MEMBER)
+
+    def test_database_rejects_roles_outside_the_defined_choices(self):
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                User.objects.filter(pk=self.user.pk).update(role="admin")
+
+    def test_user_can_change_password_with_their_current_password(self):
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            self.password_url,
+            {
+                "old_password": "MilifySafePass!42",
+                "new_password1": "NewMilifySafePass!43",
+                "new_password2": "NewMilifySafePass!43",
+            },
+        )
+
+        self.assertRedirects(response, self.url, fetch_redirect_response=False)
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password("NewMilifySafePass!43"))
+        self.assertEqual(
+            self.client.session["_auth_user_id"],
+            str(self.user.pk),
+        )
+
+    def test_password_change_rejects_an_incorrect_current_password(self):
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            self.password_url,
+            {
+                "old_password": "IncorrectCurrentPassword!42",
+                "new_password1": "NewMilifySafePass!43",
+                "new_password2": "NewMilifySafePass!43",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFormError(
+            response.context["form"],
+            "old_password",
+            "Your old password was entered incorrectly. Please enter it again.",
+        )
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password("MilifySafePass!42"))
+
+    def test_password_change_rejects_mismatched_confirmation(self):
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            self.password_url,
+            {
+                "old_password": "MilifySafePass!42",
+                "new_password1": "NewMilifySafePass!43",
+                "new_password2": "DifferentMilifyPass!44",
+            },
+        )
+
+        self.assertFormError(
+            response.context["form"],
+            "new_password2",
+            "The two password fields didn’t match.",
+        )
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password("MilifySafePass!42"))
 
     def test_profile_accepts_the_users_existing_email(self):
         self.client.force_login(self.user)

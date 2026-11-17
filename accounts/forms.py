@@ -12,9 +12,14 @@ class MilifyAuthenticationForm(AuthenticationForm):
 
 
 class CustomUserCreationForm(UserCreationForm):
+    role = forms.ChoiceField(
+        choices=[("", "Choose your role"), *CustomUser.Role.choices],
+        help_text="Choose one role for your account. This cannot be changed later.",
+    )
+
     class Meta(UserCreationForm.Meta):
         model = CustomUser
-        fields = ("full_name", "username", "email")
+        fields = ("full_name", "username", "email", "role")
         error_messages = {
             "email": {
                 "unique": "An account with this email address already exists.",
