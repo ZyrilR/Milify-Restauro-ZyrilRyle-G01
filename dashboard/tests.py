@@ -84,7 +84,7 @@ class DashboardRoleTests(TestCase):
         self.client.force_login(self.member)
         self.assertContains(
             self.client.get(reverse("member_join_project")),
-            "Joining a project is not available yet.",
+            "Use an invite code",
         )
         self.assertRedirects(
             self.client.get(reverse("owner_create_project")),

@@ -23,19 +23,8 @@ def owner_dashboard(request):
 def member_dashboard(request):
     if request.user.role != request.user.Role.MEMBER:
         return redirect("dashboard")
-    return render(request, "dashboard/member.html")
-
-
-@login_required
-def member_join_project(request):
-    if request.user.role != request.user.Role.MEMBER:
-        return redirect("dashboard")
-    return render(
-        request,
-        "dashboard/placeholder.html",
-        {
-            "title": "Join a project",
-            "description": "Joining a project is not available yet.",
-            "dashboard_url": "member_dashboard",
-        },
-    )
+    memberships = request.user.project_memberships.select_related(
+        "project",
+        "project__owner",
+    ).order_by("-joined_at")
+    return render(request, "dashboard/member.html", {"memberships": memberships})

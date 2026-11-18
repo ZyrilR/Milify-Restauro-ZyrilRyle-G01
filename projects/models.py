@@ -15,6 +15,7 @@ class Project(models.Model):
     )
     name = models.CharField(max_length=150)
     description = models.TextField(blank=True)
+    invite_code = models.CharField(max_length=6, unique=True, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -76,3 +77,70 @@ class ProjectMember(models.Model):
 
     def __str__(self):
         return f"{self.user} - {self.project}"
+
+
+class ProjectInvitation(models.Model):
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending"
+        ACCEPTED = "accepted", "Accepted"
+        DECLINED = "declined", "Declined"
+
+    project = models.ForeignKey(
+        Project,
+        on_delete=models.CASCADE,
+        related_name="invitations",
+    )
+    invited_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="sent_project_invitations",
+    )
+    invitee = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="received_project_invitations",
+    )
+    status = models.CharField(
+        max_length=10,
+        choices=Status.choices,
+        default=Status.PENDING,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    responded_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["project", "invitee"],
+                condition=models.Q(status="pending"),
+                name="unique_pending_project_invitation",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(status__in=["pending", "accepted", "declined"]),
+                name="project_invitation_status_valid",
+            ),
+        ]
+
+    def clean(self):
+        super().clean()
+        if self.project_id and self.invited_by_id != self.project.owner_id:
+            raise ValidationError({"invited_by": "Only the project owner can invite users."})
+        if self.project_id and self.invitee_id == self.project.owner_id:
+            raise ValidationError({"invitee": "A project owner cannot join their own project."})
+        if (
+            self.status == self.Status.PENDING
+            and self.project_id
+            and self.invitee_id
+            and ProjectMember.objects.filter(
+                project_id=self.project_id,
+                user_id=self.invitee_id,
+            ).exists()
+        ):
+            raise ValidationError({"invitee": "This user is already a project member."})
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.invitee} invited to {self.project}"
