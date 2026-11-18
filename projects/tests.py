@@ -5,7 +5,7 @@ from django.db.models.deletion import RestrictedError
 from django.test import TestCase
 from django.urls import reverse
 
-from .models import Project, ProjectMember
+from .models import Project, ProjectInvitation, ProjectMember
 
 
 User = get_user_model()
@@ -115,6 +115,41 @@ class ProjectMemberModelTests(TestCase):
         self.member.delete()
 
         self.assertFalse(ProjectMember.objects.filter(pk=membership.pk).exists())
+
+
+class ProjectInvitationModelTests(TestCase):
+    def setUp(self):
+        self.owner = User.objects.create_user(
+            username="owner",
+            email="owner@example.com",
+            full_name="Project Owner",
+            role=User.Role.OWNER,
+        )
+        self.member = User.objects.create_user(
+            username="member",
+            email="member@example.com",
+            full_name="Project Member",
+            role=User.Role.MEMBER,
+        )
+        self.project = Project.objects.create(owner=self.owner, name="Project")
+
+    def test_only_project_owner_can_send_invitation(self):
+        with self.assertRaises(ValidationError):
+            ProjectInvitation.objects.create(
+                project=self.project,
+                invited_by=self.member,
+                invitee=self.member,
+            )
+
+    def test_existing_member_cannot_receive_another_invitation(self):
+        ProjectMember.objects.create(project=self.project, user=self.member)
+
+        with self.assertRaises(ValidationError):
+            ProjectInvitation.objects.create(
+                project=self.project,
+                invited_by=self.owner,
+                invitee=self.member,
+            )
 
 
 class ProjectCRUDTests(TestCase):
@@ -234,3 +269,275 @@ class ProjectCRUDTests(TestCase):
                 reverse("dashboard"),
                 fetch_redirect_response=False,
             )
+
+    def test_member_dashboard_lists_only_joined_projects(self):
+        joined_project = Project.objects.create(owner=self.owner, name="Joined project")
+        ProjectMember.objects.create(project=joined_project, user=self.member)
+        Project.objects.create(owner=self.other_owner, name="Not joined project")
+        self.client.force_login(self.member)
+
+        response = self.client.get(reverse("member_dashboard"))
+
+        self.assertContains(response, joined_project.name)
+        self.assertNotContains(response, "Not joined project")
+        self.assertContains(response, "Owner: Project Owner")
+
+
+class ProjectInvitationFlowTests(TestCase):
+    def setUp(self):
+        self.owner = User.objects.create_user(
+            username="owner",
+            email="owner@example.com",
+            full_name="Project Owner",
+            password="MilifySafePass!42",
+            role=User.Role.OWNER,
+        )
+        self.member = User.objects.create_user(
+            username="member",
+            email="member@example.com",
+            full_name="Project Member",
+            password="MilifySafePass!42",
+            role=User.Role.MEMBER,
+        )
+        self.project = Project.objects.create(
+            owner=self.owner,
+            name="Invitation project",
+        )
+
+    def test_owner_can_invite_existing_member_by_username(self):
+        self.client.force_login(self.owner)
+
+        response = self.client.post(
+            reverse("owner_invite_by_username", args=[self.project.pk]),
+            {"username": "@member"},
+            follow=True,
+        )
+
+        invitation = ProjectInvitation.objects.get(
+            project=self.project,
+            invitee=self.member,
+        )
+        self.assertEqual(invitation.status, ProjectInvitation.Status.PENDING)
+        self.assertEqual(invitation.invited_by, self.owner)
+        self.assertFalse(
+            ProjectMember.objects.filter(project=self.project, user=self.member).exists()
+        )
+        self.assertContains(response, "Invitation sent to @member")
+
+    def test_inviting_unknown_username_shows_error(self):
+        self.client.force_login(self.owner)
+
+        response = self.client.post(
+            reverse("owner_invite_by_username", args=[self.project.pk]),
+            {"username": "@missing"},
+            follow=True,
+        )
+
+        self.assertContains(response, "No Milify user was found with that username.")
+        self.assertFalse(ProjectInvitation.objects.exists())
+
+    def test_duplicate_pending_invitation_is_not_created(self):
+        ProjectInvitation.objects.create(
+            project=self.project,
+            invited_by=self.owner,
+            invitee=self.member,
+        )
+        self.client.force_login(self.owner)
+
+        response = self.client.post(
+            reverse("owner_invite_by_username", args=[self.project.pk]),
+            {"username": "member"},
+            follow=True,
+        )
+
+        self.assertContains(response, "already has a pending invitation")
+        self.assertEqual(ProjectInvitation.objects.count(), 1)
+
+    def test_owner_can_generate_six_character_invite_code(self):
+        self.client.force_login(self.owner)
+
+        response = self.client.post(
+            reverse("owner_generate_invite_code", args=[self.project.pk]),
+        )
+
+        self.project.refresh_from_db()
+        original_code = self.project.invite_code
+        self.assertRegex(original_code, r"^[A-Z0-9]{6}$")
+        self.client.post(
+            reverse("owner_generate_invite_code", args=[self.project.pk]),
+        )
+        self.project.refresh_from_db()
+        self.assertRegex(self.project.invite_code, r"^[A-Z0-9]{6}$")
+        self.assertNotEqual(self.project.invite_code, original_code)
+        self.assertRedirects(
+            response,
+            reverse("owner_project_detail", args=[self.project.pk]),
+        )
+
+    def test_code_submission_creates_pending_invitation_only(self):
+        self.project.invite_code = "AB12CD"
+        self.project.save()
+        self.client.force_login(self.member)
+
+        response = self.client.post(
+            reverse("member_join_project"),
+            {"code": "ab12cd"},
+        )
+
+        invitation = ProjectInvitation.objects.get(
+            project=self.project,
+            invitee=self.member,
+        )
+        self.assertEqual(invitation.status, ProjectInvitation.Status.PENDING)
+        self.assertFalse(
+            ProjectMember.objects.filter(project=self.project, user=self.member).exists()
+        )
+        self.assertRedirects(response, reverse("member_invitations"))
+        invitation_page = self.client.get(response.url)
+        self.assertContains(invitation_page, self.project.name)
+        self.assertContains(invitation_page, "Pending invitations")
+
+    def test_pending_invitation_page_shows_only_current_members_invitations(self):
+        invitation = ProjectInvitation.objects.create(
+            project=self.project,
+            invited_by=self.owner,
+            invitee=self.member,
+        )
+        other_member = User.objects.create_user(
+            username="other-member",
+            email="other@example.com",
+            full_name="Other Member",
+            role=User.Role.MEMBER,
+        )
+        other_project = Project.objects.create(
+            owner=self.owner,
+            name="Other project",
+        )
+        ProjectInvitation.objects.create(
+            project=other_project,
+            invited_by=self.owner,
+            invitee=other_member,
+        )
+        self.client.force_login(self.member)
+
+        response = self.client.get(reverse("member_invitations"))
+
+        self.assertContains(response, self.project.name)
+        self.assertNotContains(response, other_project.name)
+        self.assertContains(
+            response,
+            reverse("respond_to_invitation", args=[invitation.pk, "accept"]),
+        )
+
+    def test_owner_cannot_access_member_invitations_page(self):
+        self.client.force_login(self.owner)
+
+        response = self.client.get(reverse("member_invitations"))
+
+        self.assertRedirects(
+            response,
+            reverse("dashboard"),
+            fetch_redirect_response=False,
+        )
+
+    def test_accepting_invitation_creates_membership(self):
+        invitation = ProjectInvitation.objects.create(
+            project=self.project,
+            invited_by=self.owner,
+            invitee=self.member,
+        )
+        self.client.force_login(self.member)
+
+        response = self.client.post(
+            reverse(
+                "respond_to_invitation",
+                args=[invitation.pk, "accept"],
+            ),
+        )
+
+        invitation.refresh_from_db()
+        self.assertEqual(invitation.status, ProjectInvitation.Status.ACCEPTED)
+        self.assertIsNotNone(invitation.responded_at)
+        self.assertTrue(
+            ProjectMember.objects.filter(project=self.project, user=self.member).exists()
+        )
+        self.assertRedirects(response, reverse("member_dashboard"))
+        dashboard = self.client.get(response.url)
+        self.assertContains(dashboard, self.project.name)
+        self.assertContains(dashboard, "Projects you’ve joined")
+
+    def test_declining_invitation_does_not_create_membership(self):
+        invitation = ProjectInvitation.objects.create(
+            project=self.project,
+            invited_by=self.owner,
+            invitee=self.member,
+        )
+        self.client.force_login(self.member)
+
+        self.client.post(
+            reverse(
+                "respond_to_invitation",
+                args=[invitation.pk, "decline"],
+            ),
+        )
+
+        invitation.refresh_from_db()
+        self.assertEqual(invitation.status, ProjectInvitation.Status.DECLINED)
+        self.assertIsNotNone(invitation.responded_at)
+        self.assertFalse(
+            ProjectMember.objects.filter(project=self.project, user=self.member).exists()
+        )
+
+    def test_other_user_cannot_respond_to_invitation(self):
+        other_member = User.objects.create_user(
+            username="other-member",
+            email="other@example.com",
+            full_name="Other Member",
+            role=User.Role.MEMBER,
+        )
+        invitation = ProjectInvitation.objects.create(
+            project=self.project,
+            invited_by=self.owner,
+            invitee=self.member,
+        )
+        self.client.force_login(other_member)
+
+        response = self.client.post(
+            reverse(
+                "respond_to_invitation",
+                args=[invitation.pk, "accept"],
+            ),
+        )
+
+        self.assertEqual(response.status_code, 404)
+        self.assertFalse(
+            ProjectMember.objects.filter(
+                project=self.project,
+                user__in=[self.member, other_member],
+            ).exists()
+        )
+
+    def test_invite_endpoints_require_project_owner(self):
+        self.client.force_login(self.member)
+
+        for route in ("owner_invite_by_username", "owner_generate_invite_code"):
+            response = self.client.post(
+                reverse(route, args=[self.project.pk]),
+            )
+            self.assertRedirects(
+                response,
+                reverse("dashboard"),
+                fetch_redirect_response=False,
+            )
+
+    def test_invalid_code_shows_error(self):
+        self.client.force_login(self.member)
+
+        response = self.client.post(
+            reverse("member_join_project"),
+            {"code": "BAD123"},
+            follow=True,
+        )
+
+        self.assertContains(response, "That invite code is invalid.")
+        self.assertFalse(ProjectInvitation.objects.exists())

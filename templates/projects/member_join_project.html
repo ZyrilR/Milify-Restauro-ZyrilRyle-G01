@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block title %}Join a project | Milify{% endblock %}
+
+{% block content %}
+    <main class="workspace">
+        <div class="page-heading">
+            <div>
+                <h1 id="join-project-title">Join a project</h1>
+                <p class="intro">Enter the six-character invite code shared by a project owner.</p>
+            </div>
+        </div>
+        {% for message in messages %}
+            <p class="message{% if message.tags == 'error' %} error{% endif %}" role="status">{{ message }}</p>
+        {% endfor %}
+        <section class="panel form-panel" aria-labelledby="invite-code-title">
+            <h2 id="invite-code-title">Use an invite code</h2>
+            <form method="post">
+                {% csrf_token %}
+                {% if form.non_field_errors %}<div class="error" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+                {% for field in form %}
+                    <div class="field">
+                        {{ field.label_tag }}{{ field }}
+                        {% for error in field.errors %}<p class="error" role="alert">{{ error }}</p>{% endfor %}
+                    </div>
+                {% endfor %}
+                <button class="submit" type="submit">Find invitation</button>
+                <a class="button-link password-link" href="{% url 'member_invitations' %}">View pending invitations</a>
+            </form>
+        </section>
+    </main>
+{% endblock %}

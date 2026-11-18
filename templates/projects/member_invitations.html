@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block title %}Pending invitations | Milify{% endblock %}
+
+{% block content %}
+    <main class="workspace">
+        <div class="page-heading">
+            <div>
+                <h1 id="pending-invitations-title">Pending invitations</h1>
+                <p class="intro">Review invitations sent to your Milify account.</p>
+            </div>
+            <a class="button-link" href="{% url 'member_join_project' %}">Enter invite code</a>
+        </div>
+        {% for message in messages %}
+            <p class="message{% if message.tags == 'error' %} error{% endif %}" role="status">{{ message }}</p>
+        {% endfor %}
+        <section class="panel" aria-labelledby="invitation-list-title">
+            <h2 id="invitation-list-title">Invitations</h2>
+            {% if pending_invitations %}
+                <ul class="project-list">
+                    {% for invitation in pending_invitations %}
+                        <li class="project-item">
+                            <div>
+                                <h3>{{ invitation.project.name }}</h3>
+                                <p class="project-description">Invited by {{ invitation.invited_by.full_name|default:invitation.invited_by.username }} on {{ invitation.created_at|date:"M j, Y" }}.</p>
+                            </div>
+                            <div style="display: flex; gap: 10px;">
+                                <form method="post" action="{% url 'respond_to_invitation' invitation.pk 'accept' %}">
+                                    {% csrf_token %}
+                                    <button class="submit" type="submit">Accept</button>
+                                </form>
+                                <form method="post" action="{% url 'respond_to_invitation' invitation.pk 'decline' %}">
+                                    {% csrf_token %}
+                                    <button class="submit password-link" type="submit">Decline</button>
+                                </form>
+                            </div>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p>You do not have any pending invitations.</p>
+            {% endif %}
+        </section>
+    </main>
+{% endblock %}

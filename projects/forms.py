@@ -31,3 +31,25 @@ class ProjectForm(forms.ModelForm):
         if not name:
             raise forms.ValidationError("Project name cannot be blank.")
         return name
+
+
+class ProjectUsernameInviteForm(forms.Form):
+    username = forms.CharField(
+        max_length=150,
+        label="Username",
+        help_text="Enter the member's username, with or without @.",
+    )
+
+    def clean_username(self):
+        return self.cleaned_data["username"].strip().removeprefix("@").strip()
+
+
+class ProjectInviteCodeForm(forms.Form):
+    code = forms.CharField(
+        min_length=6,
+        max_length=6,
+        label="Invite code",
+    )
+
+    def clean_code(self):
+        return self.cleaned_data["code"].strip().upper()

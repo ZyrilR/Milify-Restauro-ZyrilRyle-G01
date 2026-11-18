@@ -23,5 +23,40 @@
                 <a class="button-link password-link" href="{% url 'owner_delete_project' project.pk %}">Delete project</a>
             </div>
         </section>
+        <section class="panel" aria-labelledby="project-invites-title" style="margin-top: 20px;">
+            <h2 id="project-invites-title">Invite members</h2>
+            <p>Invite an existing member by username or generate a six-character code to share.</p>
+            <form method="post" action="{% url 'owner_invite_by_username' project.pk %}">
+                {% csrf_token %}
+                {% for field in username_invite_form %}
+                    <div class="field">
+                        {{ field.label_tag }}{{ field }}
+                        {% if field.help_text %}<div class="help">{{ field.help_text }}</div>{% endif %}
+                        {% for error in field.errors %}<p class="error" role="alert">{{ error }}</p>{% endfor %}
+                    </div>
+                {% endfor %}
+                <button class="submit" type="submit">Send invitation</button>
+            </form>
+            <form method="post" action="{% url 'owner_generate_invite_code' project.pk %}" style="margin-top: 24px;">
+                {% csrf_token %}
+                <button class="submit" type="submit">{% if project.invite_code %}Generate a new code{% else %}Generate invite code{% endif %}</button>
+            </form>
+            {% if project.invite_code %}
+                <p class="message" role="status">Share this code with a member: <strong>{{ project.invite_code }}</strong></p>
+            {% endif %}
+            <h3>Pending invitations</h3>
+            {% if pending_invitations %}
+                <ul class="project-list">
+                    {% for invitation in pending_invitations %}
+                        <li class="project-item">
+                            <span>@{{ invitation.invitee.username }}</span>
+                            <span class="project-date">Sent {{ invitation.created_at|date:"M j, Y" }}</span>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p>No pending invitations.</p>
+            {% endif %}
+        </section>
     </main>
 {% endblock %}
