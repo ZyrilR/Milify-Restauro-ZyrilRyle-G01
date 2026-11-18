@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block title %}Delete {{ project.name }} | Milify{% endblock %}
+
+{% block content %}
+    <main class="workspace">
+        <div class="page-heading">
+            <div>
+                <h1>Delete project</h1>
+                <p class="intro">This action cannot be undone.</p>
+            </div>
+        </div>
+        <section class="panel" aria-labelledby="delete-project-title">
+            <h2 id="delete-project-title">Delete "{{ project.name }}"?</h2>
+            <p>The project and its saved information will be permanently removed.</p>
+            <form method="post" style="margin-top: 20px;">
+                {% csrf_token %}
+                <button class="submit" type="submit">Delete project</button>
+                <a class="button-link password-link" href="{% url 'owner_project_detail' project.pk %}">Cancel</a>
+            </form>
+        </section>
+    </main>
+{% endblock %}

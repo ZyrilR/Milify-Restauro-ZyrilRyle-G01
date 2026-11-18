@@ -1,6 +1,8 @@
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect, render
 
+from projects.models import Project
+
 
 @login_required
 def dashboard(request):
@@ -13,7 +15,8 @@ def dashboard(request):
 def owner_dashboard(request):
     if request.user.role != request.user.Role.OWNER:
         return redirect("dashboard")
-    return render(request, "dashboard/owner.html")
+    projects = Project.objects.filter(owner=request.user).order_by("-updated_at")
+    return render(request, "dashboard/owner.html", {"projects": projects})
 
 
 @login_required
@@ -21,21 +24,6 @@ def member_dashboard(request):
     if request.user.role != request.user.Role.MEMBER:
         return redirect("dashboard")
     return render(request, "dashboard/member.html")
-
-
-@login_required
-def owner_create_project(request):
-    if request.user.role != request.user.Role.OWNER:
-        return redirect("dashboard")
-    return render(
-        request,
-        "dashboard/placeholder.html",
-        {
-            "title": "Create a project",
-            "description": "Project creation is not available yet.",
-            "dashboard_url": "owner_dashboard",
-        },
-    )
 
 
 @login_required
