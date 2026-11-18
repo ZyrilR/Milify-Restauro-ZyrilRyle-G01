@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block title %}{{ project.name }} | Milify{% endblock %}
+
+{% block content %}
+    <main class="workspace">
+        <div class="page-heading">
+            <div>
+                <h1>{{ project.name }}</h1>
+                <p class="intro">{{ project.description|default:"No project description yet." }}</p>
+            </div>
+        </div>
+        {% for message in messages %}<p class="message" role="status">{{ message }}</p>{% endfor %}
+        <section class="panel" aria-labelledby="project-details-title">
+            <h2 id="project-details-title">Project details</h2>
+            <dl class="profile-details">
+                <div><dt>Owner</dt><dd>{{ project.owner.full_name|default:project.owner.username }}</dd></div>
+                <div><dt>Created</dt><dd>{{ project.created_at|date:"M j, Y" }}</dd></div>
+                <div><dt>Last updated</dt><dd>{{ project.updated_at|date:"M j, Y" }}</dd></div>
+            </dl>
+            <div style="display: flex; gap: 12px; margin-top: 20px;">
+                <a class="button-link" href="{% url 'owner_edit_project' project.pk %}">Edit project</a>
+                <a class="button-link password-link" href="{% url 'owner_delete_project' project.pk %}">Delete project</a>
+            </div>
+        </section>
+    </main>
+{% endblock %}

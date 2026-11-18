@@ -10,10 +10,33 @@
                 <p class="intro">Create and manage your projects from one place.</p>
             </div>
         </div>
-        <section class="panel empty-state" aria-labelledby="projects-title">
-            <h2 class="panel-heading" id="projects-title">Start a project</h2>
-            <p>Create a project to organize your work and invite members.</p>
-            <a class="button-link" href="{% url 'owner_create_project' %}">Create project</a>
+        {% for message in messages %}<p class="message" role="status">{{ message }}</p>{% endfor %}
+        <section class="panel" aria-labelledby="projects-title">
+            <div class="page-heading">
+                <div>
+                    <h2 class="panel-heading" id="projects-title">Your projects</h2>
+                    <p class="intro">Manage the workspaces you own.</p>
+                </div>
+                <a class="button-link" href="{% url 'owner_create_project' %}">Create project</a>
+            </div>
+            {% if projects %}
+                <ul class="project-list">
+                    {% for project in projects %}
+                        <li class="project-item">
+                            <div>
+                                <h2><a href="{% url 'owner_project_detail' project.pk %}">{{ project.name }}</a></h2>
+                                {% if project.description %}<p class="project-description">{{ project.description }}</p>{% endif %}
+                            </div>
+                            <p class="project-date">Updated {{ project.updated_at|date:"M j, Y" }}</p>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <div class="empty-state">
+                    <h2>Start a project</h2>
+                    <p>Create a project to organize your work and invite members.</p>
+                </div>
+            {% endif %}
         </section>
     </main>
 {% endblock %}
