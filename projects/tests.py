@@ -382,7 +382,6 @@ class ProjectInvitationFlowTests(TestCase):
         response = self.client.post(
             reverse("member_join_project"),
             {"code": "ab12cd"},
-            follow=True,
         )
 
         invitation = ProjectInvitation.objects.get(
@@ -393,7 +392,53 @@ class ProjectInvitationFlowTests(TestCase):
         self.assertFalse(
             ProjectMember.objects.filter(project=self.project, user=self.member).exists()
         )
-        self.assertContains(response, "Review and accept it below to join")
+        self.assertRedirects(response, reverse("member_invitations"))
+        invitation_page = self.client.get(response.url)
+        self.assertContains(invitation_page, self.project.name)
+        self.assertContains(invitation_page, "Pending invitations")
+
+    def test_pending_invitation_page_shows_only_current_members_invitations(self):
+        invitation = ProjectInvitation.objects.create(
+            project=self.project,
+            invited_by=self.owner,
+            invitee=self.member,
+        )
+        other_member = User.objects.create_user(
+            username="other-member",
+            email="other@example.com",
+            full_name="Other Member",
+            role=User.Role.MEMBER,
+        )
+        other_project = Project.objects.create(
+            owner=self.owner,
+            name="Other project",
+        )
+        ProjectInvitation.objects.create(
+            project=other_project,
+            invited_by=self.owner,
+            invitee=other_member,
+        )
+        self.client.force_login(self.member)
+
+        response = self.client.get(reverse("member_invitations"))
+
+        self.assertContains(response, self.project.name)
+        self.assertNotContains(response, other_project.name)
+        self.assertContains(
+            response,
+            reverse("respond_to_invitation", args=[invitation.pk, "accept"]),
+        )
+
+    def test_owner_cannot_access_member_invitations_page(self):
+        self.client.force_login(self.owner)
+
+        response = self.client.get(reverse("member_invitations"))
+
+        self.assertRedirects(
+            response,
+            reverse("dashboard"),
+            fetch_redirect_response=False,
+        )
 
     def test_accepting_invitation_creates_membership(self):
         invitation = ProjectInvitation.objects.create(

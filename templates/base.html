@@ -168,6 +168,7 @@
                 {% if user.role == "owner" %}
                     <a href="{% url 'owner_create_project' %}">Create project</a>
                 {% else %}
+                    <a href="{% url 'member_invitations' %}">Invitations</a>
                     <a href="{% url 'member_join_project' %}">Join project</a>
                 {% endif %}
                 <a href="{% url 'profile' %}">Profile</a>

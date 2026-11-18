@@ -193,12 +193,21 @@ def member_join_project(request):
                 )
                 messages.success(
                     request,
-                    f"Invitation found for {project.name}. Review and accept it below to join.",
+                    f"Invitation found for {project.name}. Review it on your invitations page.",
                 )
+                return redirect("member_invitations")
         else:
             messages.error(request, "Enter a valid six-character invite code.")
     else:
         form = ProjectInviteCodeForm()
+
+    return render(request, "projects/member_join_project.html", {"form": form})
+
+
+@login_required
+def member_invitations(request):
+    if request.user.role != request.user.Role.MEMBER:
+        return redirect("dashboard")
 
     pending_invitations = ProjectInvitation.objects.filter(
         invitee=request.user,
@@ -208,7 +217,6 @@ def member_join_project(request):
         request,
         "projects/member_invitations.html",
         {
-            "form": form,
             "pending_invitations": pending_invitations,
         },
     )
@@ -243,4 +251,4 @@ def respond_to_invitation(request, pk, response):
     messages.success(request, message)
     if response == "accept":
         return redirect("member_dashboard")
-    return redirect("member_join_project")
+    return redirect("member_invitations")

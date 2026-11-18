@@ -19,6 +19,7 @@ urlpatterns = [
         name="owner_generate_invite_code",
     ),
     path("member/join-project/", views.member_join_project, name="member_join_project"),
+    path("member/invitations/", views.member_invitations, name="member_invitations"),
     path(
         "invitations/<int:pk>/<str:response>/",
         views.respond_to_invitation,

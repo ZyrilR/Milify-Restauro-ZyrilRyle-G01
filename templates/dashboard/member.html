@@ -17,7 +17,10 @@
                     <h2 class="panel-heading" id="projects-title">Projects you’ve joined</h2>
                     <p class="intro">Workspaces shared with you by project owners.</p>
                 </div>
-                <a class="button-link" href="{% url 'member_join_project' %}">Join project</a>
+                <div style="display: flex; gap: 10px;">
+                    <a class="button-link password-link" href="{% url 'member_invitations' %}">Pending invitations</a>
+                    <a class="button-link" href="{% url 'member_join_project' %}">Join project</a>
+                </div>
             </div>
             {% if memberships %}
                 <ul class="project-list">
